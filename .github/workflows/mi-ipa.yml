@@ -6,8 +6,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: ./downloadFrameworks.sh
-      - run: xcodebuild -project Code.xcodeproj -scheme Code -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
-      - run: |
+      - name: Listar esquemas
+        run: xcodebuild -list -project Code.xcodeproj
+      - name: Compilar
+        run: |
+          SCHEME=$(xcodebuild -list -json -project Code.xcodeproj | python3 -c 'import sys,json; s=json.load(sys.stdin)["project"]["schemes"]; c=[x for x in s if "Test" not in x]; print(c[0] if c else s[0])')
+          echo "Usando esquema: $SCHEME"
+          xcodebuild -project Code.xcodeproj -scheme "$SCHEME" -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - name: Crear IPA
+        run: |
           mkdir Payload
           cp -R build/Build/Products/Release-iphoneos/*.app Payload/
           zip -r CodeApp.ipa Payload
