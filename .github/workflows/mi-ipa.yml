@@ -6,13 +6,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: ./downloadFrameworks.sh
-      - name: Listar esquemas
-        run: xcodebuild -list -project Code.xcodeproj
       - name: Compilar
         run: |
           SCHEME=$(xcodebuild -list -json -project Code.xcodeproj | python3 -c 'import sys,json; s=json.load(sys.stdin)["project"]["schemes"]; c=[x for x in s if "Test" not in x]; print(c[0] if c else s[0])')
           echo "Usando esquema: $SCHEME"
           xcodebuild -project Code.xcodeproj -scheme "$SCHEME" -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - name: Limpiar archivos dañados
+        run: |
+          APP=$(ls -d build/Build/Products/Release-iphoneos/*.app | head -1)
+          find "$APP" -type d -name "java-8-openjdk" -prune -exec rm -rf {} +
+          find "$APP" \( -name "*.dylib" -o -name "*.so" \) -type f | while read f; do
+            if ! file "$f" | grep -q "Mach-O"; then echo "Quitando: $f"; rm -f "$f"; fi
+          done
       - name: Crear IPA
         run: |
           mkdir Payload
